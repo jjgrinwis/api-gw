@@ -3,6 +3,10 @@
 resource "aws_api_gateway_rest_api" "MyDemoAPI" {
   name        = "MyWargamesAPI"
   description = "wargames api-gw setup"
+  endpoint_configuration {
+    types = ["REGIONAL"]
+  }
+  
 }
 
 resource "aws_api_gateway_method" "MyDemoMethod" {
@@ -69,4 +73,37 @@ resource "aws_api_gateway_stage" "example" {
   deployment_id = aws_api_gateway_deployment.example.id
   rest_api_id   = aws_api_gateway_rest_api.MyDemoAPI.id
   stage_name    = "wargame"
+}
+
+resource "aws_api_gateway_domain_name" "example" {
+  domain_name              = "${var.api-gw-hostname}.${var.zone-name}"
+  regional_certificate_arn = aws_acm_certificate_validation.example.certificate_arn
+
+  endpoint_configuration {
+    types = ["REGIONAL"]
+  }
+}
+
+resource "aws_api_gateway_base_path_mapping" "example" {
+  api_id      =aws_api_gateway_rest_api.MyDemoAPI.id
+  stage_name  = aws_api_gateway_stage.example.stage_name
+  domain_name = aws_api_gateway_domain_name.example.domain_name
+}
+
+resource "aws_route53_record" "weigthed_front_end" {
+  zone_id = data.aws_route53_zone.example.zone_id
+  name    = "${var.api-gw-hostname}.${var.zone-name}"
+  type    = "A"
+
+  weighted_routing_policy {
+    weight = 90
+  }
+
+  alias {
+    name                   = aws_api_gateway_domain_name.example.regional_domain_name
+    zone_id                = aws_api_gateway_domain_name.example.regional_zone_id
+    evaluate_target_health = false
+  }
+
+  set_identifier = var.aws-region
 }
