@@ -18,3 +18,8 @@ variable "aws-region" {
   description = "AWS region"
   type = string
 }
+
+variable "weight" {
+  description = "weight of DNS record, 0-255"
+  type = number
+}

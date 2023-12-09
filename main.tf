@@ -90,20 +90,35 @@ resource "aws_api_gateway_base_path_mapping" "example" {
   domain_name = aws_api_gateway_domain_name.example.domain_name
 }
 
+# add some healthcheck to the mix
+resource "aws_route53_health_check" "example" {
+  fqdn              = split("/",aws_api_gateway_stage.example.invoke_url)[2]
+  port              = 443
+  type              = "HTTPS"
+  resource_path     = "/wargame"
+  failure_threshold = "5"
+  request_interval  = "30"
+
+  tags = {
+    Name = "${var.aws-region}-test-health-check"
+  }
+}
+
 resource "aws_route53_record" "weigthed_front_end" {
   zone_id = data.aws_route53_zone.example.zone_id
   name    = "${var.api-gw-hostname}.${var.zone-name}"
   type    = "A"
 
   weighted_routing_policy {
-    weight = 90
+    weight = var.weight
   }
 
   alias {
     name                   = aws_api_gateway_domain_name.example.regional_domain_name
     zone_id                = aws_api_gateway_domain_name.example.regional_zone_id
-    evaluate_target_health = false
-  }
+    evaluate_target_health = true
 
+  }
+  health_check_id = aws_route53_health_check.example.id
   set_identifier = var.aws-region
 }
